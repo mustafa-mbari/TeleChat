@@ -33,6 +33,7 @@ This bot uses **in-memory state** for temporary data via [lib/memory.ts](lib/mem
 - **Temporary links** (`Map<chatId, url>`) - URLs waiting for category selection
 - **Rate limiting** (`Map<userId, timestamp[]>`) - Request timestamps per user
 - **Search mode** (`Map<chatId, boolean>`) - Whether user is in search mode
+- **New category mode** (`Map<chatId, boolean>`) - Whether user is entering a new category name
 - **Delete mode** (`Map<chatId, boolean>`) - Whether user is in delete mode
 
 All persistent data lives in Notion via [lib/notion.ts](lib/notion.ts).
@@ -42,6 +43,7 @@ All persistent data lives in Notion via [lib/notion.ts](lib/notion.ts).
 The bot uses Telegram's inline keyboard callback_data to handle button interactions:
 
 - `category:Work` - User selected "Work" category
+- `category:__other__` - User wants to create a new category
 - `delete:pageId` - User wants to delete link with this Notion page ID
 - `force_save:url` - User confirmed saving a duplicate URL
 - `cancel` - User cancelled the operation
@@ -55,30 +57,32 @@ The bot maintains conversation state through memory flags:
 1. **Normal mode**: Bot accepts URLs or commands
 2. **Pending URL mode**: URL stored in memory, awaiting category selection
 3. **Search mode**: Next message is treated as search keyword
-4. **Delete mode**: Handled via inline buttons (not a separate mode)
+4. **New category mode**: Next message is treated as new category name
+5. **Delete mode**: Handled via inline buttons (not a separate mode)
 
-Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearchMode()`, `disableSearchMode()`, etc.
+Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearchMode()`, `disableSearchMode()`, `enableNewCategoryMode()`, `disableNewCategoryMode()`, etc.
 
 ## Module Responsibilities
 
 ### [lib/config.ts](lib/config.ts)
-- Defines available categories (must match Notion database options)
 - Rate limit configuration
 - User authorization logic
 
-**Important**: When adding categories, update both `CATEGORIES` array AND the Notion database's Category select property.
+**Note**: Categories are now managed dynamically from Notion database. The `CATEGORIES` constant is no longer used.
 
 ### [lib/memory.ts](lib/memory.ts)
 - All in-memory state management
 - Rate limiting logic (sliding window)
 - Temporary URL storage before category selection
-- User mode tracking (search/delete)
+- User mode tracking (search/delete/new category)
 
 ### [lib/notion.ts](lib/notion.ts)
 - Notion API client wrapper
 - CRUD operations: `saveToNotion()`, `getRecentLinks()`, `searchLinks()`, `deleteLink()`
+- Category management: `getCategories()`, `addCategory()`
 - Duplicate detection: `checkDuplicateUrl()`
 - Data extraction from Notion's complex response format
+- Auto-timestamp support for Created field
 
 **Note**: Notion API has eventual consistency - duplicate detection may occasionally miss recent saves.
 
@@ -86,7 +90,8 @@ Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearch
 - Telegram API wrapper functions
 - Message formatting and button creation
 - URL extraction and validation
-- Inline keyboard builders
+- Dynamic inline keyboard builders (fetches categories from Notion)
+- "Other" option for creating new categories
 
 ### [app/api/telegram/route.ts](app/api/telegram/route.ts)
 - Main webhook endpoint
@@ -111,8 +116,13 @@ The bot expects a Notion database with these exact property names:
 
 - **Title** (Title type) - Link title/hostname
 - **URL** (URL type) - The actual link
-- **Category** (Select type) - Must have options matching `CATEGORIES` in config
-- **Created** (Created time type) - Auto-populated timestamp
+- **Category** (Select type) - Dynamically managed by the bot. Users can create new categories on-the-fly via the "Other" option
+- **Created** (Date type) - Timestamp set by the bot when link is saved
+
+**Important**:
+- The bot fetches categories dynamically from the database's Category select property
+- New categories are automatically added to the database when users create them
+- The Created field must be a "Date" type (not "Created time") for the bot to set it explicitly
 
 Share the database with your Notion integration for the bot to access it.
 
@@ -128,8 +138,16 @@ Check Vercel function logs for debugging deployed version.
 ## Common Modifications
 
 ### Adding a new category
-1. Update `CATEGORIES` in [lib/config.ts](lib/config.ts)
-2. Add the same category to Notion database's Category select property
+Categories are now managed dynamically! Users can create new categories directly through the bot:
+1. Send a URL to the bot
+2. Select "➕ Other (Create New)" from the category buttons
+3. Enter the new category name
+4. The category is automatically added to Notion and available for all future saves
+
+Alternatively, you can add categories manually in Notion:
+1. Open your Notion database
+2. Click on the Category property settings
+3. Add a new option to the Select property
 
 ### Changing rate limit
 Edit `RATE_LIMIT` in [lib/config.ts](lib/config.ts):
