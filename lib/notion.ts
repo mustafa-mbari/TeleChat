@@ -20,7 +20,7 @@ export interface NotionLink {
  */
 export async function saveToNotion(
   url: string,
-  category: Category,
+  category: string,
   title?: string
 ): Promise<{ success: boolean; pageId?: string; error?: string }> {
   try {
@@ -45,6 +45,11 @@ export async function saveToNotion(
         Category: {
           select: {
             name: category
+          }
+        },
+        Created: {
+          date: {
+            start: new Date().toISOString()
           }
         }
       }
@@ -154,6 +159,80 @@ export async function deleteLink(pageId: string): Promise<boolean> {
 }
 
 /**
+ * Get all available categories from Notion database
+ */
+export async function getCategories(): Promise<string[]> {
+  try {
+    const database = await notion.databases.retrieve({
+      database_id: databaseId
+    });
+
+    const categoryProperty = (database as any).properties.Category;
+
+    if (categoryProperty?.type === 'select' && categoryProperty.select?.options) {
+      return categoryProperty.select.options.map((option: any) => option.name);
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+/**
+ * Add a new category to Notion database
+ */
+export async function addCategory(categoryName: string): Promise<boolean> {
+  try {
+    // First, get current categories
+    const database = await notion.databases.retrieve({
+      database_id: databaseId
+    });
+
+    const categoryProperty = (database as any).properties.Category;
+
+    if (categoryProperty?.type !== 'select') {
+      console.error('Category property is not a select type');
+      return false;
+    }
+
+    const currentOptions = categoryProperty.select?.options || [];
+
+    // Check if category already exists
+    const exists = currentOptions.some((opt: any) =>
+      opt.name.toLowerCase() === categoryName.toLowerCase()
+    );
+
+    if (exists) {
+      return true; // Already exists, consider it success
+    }
+
+    // Add new category option
+    const updatedOptions = [
+      ...currentOptions,
+      { name: categoryName }
+    ];
+
+    await notion.databases.update({
+      database_id: databaseId,
+      properties: {
+        Category: {
+          select: {
+            options: updatedOptions
+          }
+        }
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error adding category:', error);
+    return false;
+  }
+}
+
+/**
  * Extract link data from Notion page object
  */
 function extractLinkFromPage(page: any): NotionLink {
@@ -177,10 +256,12 @@ function extractLinkFromPage(page: any): NotionLink {
     category = properties.Category.select.name;
   }
 
-  // Extract created time
+  // Extract created time (supports both created_time and date types)
   let created = '';
   if (properties.Created?.created_time) {
     created = properties.Created.created_time;
+  } else if (properties.Created?.date?.start) {
+    created = properties.Created.date.start;
   }
 
   return {

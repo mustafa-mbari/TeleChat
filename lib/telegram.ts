@@ -3,7 +3,7 @@ import type {
   TelegramInlineKeyboardMarkup,
   TelegramInlineKeyboardButton
 } from '@/types/telegram';
-import { CATEGORIES } from './config';
+import { getCategories } from './notion';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const BASE_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -38,17 +38,24 @@ export async function sendMessage(
 /**
  * Create category buttons for inline keyboard
  */
-export function createCategoryButtons(): TelegramInlineKeyboardButton[][] {
+export function createCategoryButtons(categories: string[]): TelegramInlineKeyboardButton[][] {
   const buttons: TelegramInlineKeyboardButton[][] = [];
   const buttonsPerRow = 2;
 
-  for (let i = 0; i < CATEGORIES.length; i += buttonsPerRow) {
-    const row = CATEGORIES.slice(i, i + buttonsPerRow).map(category => ({
+  // Add regular category buttons
+  for (let i = 0; i < categories.length; i += buttonsPerRow) {
+    const row = categories.slice(i, i + buttonsPerRow).map(category => ({
       text: category,
       callback_data: `category:${category}`
     }));
     buttons.push(row);
   }
+
+  // Add "Other" button on a separate row
+  buttons.push([{
+    text: '➕ Other (Create New)',
+    callback_data: 'category:__other__'
+  }]);
 
   return buttons;
 }
@@ -60,8 +67,11 @@ export async function sendCategoryButtons(
   chatId: number,
   message: string = 'Choose a category:'
 ): Promise<boolean> {
+  // Fetch categories dynamically from Notion
+  const categories = await getCategories();
+
   const reply_markup: TelegramInlineKeyboardMarkup = {
-    inline_keyboard: createCategoryButtons()
+    inline_keyboard: createCategoryButtons(categories)
   };
 
   return await sendMessage(chatId, message, { reply_markup });
@@ -174,13 +184,13 @@ export async function sendHelpMessage(chatId: number): Promise<boolean> {
 
 *How to use:*
 1️⃣ Send a URL
-2️⃣ Choose a category
+2️⃣ Choose a category (or create new one)
 3️⃣ Link saved to Notion ✅
 
 *Example:*
 \`https://youtube.com/watch?v=example\`
 
-Then select category: Work, Study, Video, or Other
+Then select from your existing categories or create a new one by selecting "Other"
   `.trim();
 
   return await sendMessage(chatId, helpText, { parse_mode: 'Markdown' });

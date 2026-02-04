@@ -16,7 +16,8 @@ import {
   getRecentLinks,
   searchLinks,
   deleteLink,
-  formatDate
+  formatDate,
+  addCategory
 } from '@/lib/notion';
 import {
   storeTempLink,
@@ -27,10 +28,12 @@ import {
   getRemainingRequests,
   enableSearchMode,
   disableSearchMode,
-  isInSearchMode
+  isInSearchMode,
+  enableNewCategoryMode,
+  disableNewCategoryMode,
+  isInNewCategoryMode
 } from '@/lib/memory';
-import { isUserAuthorized, CATEGORIES } from '@/lib/config';
-import type { Category } from '@/lib/config';
+import { isUserAuthorized } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,6 +96,12 @@ async function handleMessage(update: TelegramUpdate) {
   // Handle search mode
   if (isInSearchMode(chatId)) {
     await handleSearchQuery(chatId, text);
+    return;
+  }
+
+  // Handle new category mode
+  if (isInNewCategoryMode(chatId)) {
+    await handleNewCategoryInput(chatId, text);
     return;
   }
 
@@ -225,7 +234,20 @@ async function handleCallbackQuery(update: TelegramUpdate) {
 
   // Handle category selection
   if (data.startsWith('category:')) {
-    const category = data.replace('category:', '') as Category;
+    const category = data.replace('category:', '');
+
+    // Check if user wants to create a new category
+    if (category === '__other__') {
+      enableNewCategoryMode(chatId);
+      await answerCallbackQuery(callbackQuery.id);
+      await sendMessage(
+        chatId,
+        '✏️ *Enter new category name:*\n\nType the name for your new category.\nUse /cancel to cancel.',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+
     await handleCategorySelection(chatId, category, callbackQuery.id);
     return;
   }
@@ -245,7 +267,7 @@ async function handleCallbackQuery(update: TelegramUpdate) {
  */
 async function handleCategorySelection(
   chatId: number,
-  category: Category,
+  category: string,
   callbackQueryId: string
 ) {
   const url = getTempLink(chatId);
@@ -272,6 +294,64 @@ async function handleCategorySelection(
     await sendMessage(
       chatId,
       `❌ Error saving to Notion: ${result.error}\n\nPlease try again.`
+    );
+  }
+}
+
+/**
+ * Handle new category name input
+ */
+async function handleNewCategoryInput(chatId: number, categoryName: string) {
+  // Check for cancel
+  if (categoryName.toLowerCase() === '/cancel') {
+    disableNewCategoryMode(chatId);
+    removeTempLink(chatId);
+    await sendMessage(chatId, '❌ Cancelled.');
+    return;
+  }
+
+  // Validate category name
+  const trimmedName = categoryName.trim();
+  if (trimmedName.length === 0) {
+    await sendMessage(chatId, '⚠️ Category name cannot be empty. Please try again or use /cancel to cancel.');
+    return;
+  }
+
+  if (trimmedName.length > 50) {
+    await sendMessage(chatId, '⚠️ Category name is too long (max 50 characters). Please try again or use /cancel to cancel.');
+    return;
+  }
+
+  // Get the stored URL
+  const url = getTempLink(chatId);
+  if (!url) {
+    disableNewCategoryMode(chatId);
+    await sendMessage(chatId, '❌ Session expired. Please send the URL again.');
+    return;
+  }
+
+  // Add category to Notion database
+  const categoryAdded = await addCategory(trimmedName);
+  if (!categoryAdded) {
+    await sendMessage(chatId, '❌ Error adding category to database. Please try again or use /cancel to cancel.');
+    return;
+  }
+
+  // Save to Notion with new category
+  const result = await saveToNotion(url, trimmedName);
+
+  if (result.success) {
+    await sendMessage(
+      chatId,
+      `✅ *Link saved successfully!*\n\n📂 Category: ${trimmedName} (NEW)\n🌐 ${url}`,
+      { parse_mode: 'Markdown' }
+    );
+    disableNewCategoryMode(chatId);
+    removeTempLink(chatId);
+  } else {
+    await sendMessage(
+      chatId,
+      `❌ Error saving to Notion: ${result.error}\n\nPlease try again or use /cancel to cancel.`
     );
   }
 }

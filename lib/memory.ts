@@ -155,6 +155,33 @@ export function isInDeleteMode(chatId: number): boolean {
 }
 
 /**
+ * New category mode - waiting for user to input new category name
+ * Map structure: chatId -> true/false
+ */
+const newCategoryMode = new Map<number, boolean>();
+
+/**
+ * Enable new category mode for user
+ */
+export function enableNewCategoryMode(chatId: number): void {
+  newCategoryMode.set(chatId, true);
+}
+
+/**
+ * Disable new category mode for user
+ */
+export function disableNewCategoryMode(chatId: number): void {
+  newCategoryMode.delete(chatId);
+}
+
+/**
+ * Check if user is in new category mode
+ */
+export function isInNewCategoryMode(chatId: number): boolean {
+  return newCategoryMode.get(chatId) || false;
+}
+
+/**
  * Get memory statistics (for debugging)
  */
 export function getMemoryStats() {
@@ -162,6 +189,7 @@ export function getMemoryStats() {
     tempLinks: tempLinks.size,
     rateLimitedUsers: rateLimitMap.size,
     searchModeUsers: searchMode.size,
-    deleteModeUsers: deleteMode.size
+    deleteModeUsers: deleteMode.size,
+    newCategoryModeUsers: newCategoryMode.size
   };
 }
