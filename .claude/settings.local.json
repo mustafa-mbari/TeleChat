@@ -6,7 +6,13 @@
       "Bash(curl:*)",
       "Bash(powershell -Command \"Invoke-WebRequest -Uri ''https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip'' -OutFile ''ngrok.zip''\")",
       "Bash(npm install:*)",
-      "Bash(npx localtunnel:*)"
+      "Bash(npx localtunnel:*)",
+      "Bash(git push)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Bash(git ls-tree:*)"
     ]
   }
 }
