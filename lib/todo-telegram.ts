@@ -203,6 +203,8 @@ Each task has buttons to:
 *Examples:*
 \`Buy groceries\` - Creates a task
 \`l\` - Lists all pending tasks
+
+_Bot Version 1.0_
   `.trim();
 
   return await sendMessage(chatId, helpText, { parse_mode: 'Markdown' });
