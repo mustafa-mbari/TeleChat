@@ -7,12 +7,42 @@ const notion = new Client({
 
 const databaseId = process.env.NOTION_DB_ID!;
 
+/**
+ * Get the maximum Nr value from the database
+ */
+async function getMaxNr(): Promise<number> {
+  try {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      page_size: 1,
+      sorts: [
+        {
+          property: 'Nr',
+          direction: 'descending'
+        }
+      ]
+    });
+
+    if (response.results.length > 0) {
+      const page = response.results[0] as any;
+      const nrValue = page.properties.Nr?.number;
+      return nrValue || 0;
+    }
+
+    return 0;
+  } catch (error) {
+    console.error('Error getting max Nr:', error);
+    return 0;
+  }
+}
+
 export interface NotionLink {
   id: string;
   title: string;
   url: string;
   category: string;
   created: string;
+  nr?: number;
 }
 
 /**
@@ -26,6 +56,10 @@ export async function saveToNotion(
   try {
     // Use URL as title if no title provided
     const pageTitle = title || new URL(url).hostname;
+
+    // Get the next Nr value
+    const maxNr = await getMaxNr();
+    const nextNr = maxNr + 1;
 
     const response = await notion.pages.create({
       parent: { database_id: databaseId },
@@ -51,6 +85,9 @@ export async function saveToNotion(
           date: {
             start: new Date().toISOString()
           }
+        },
+        Nr: {
+          number: nextNr
         }
       }
     });
@@ -264,12 +301,19 @@ function extractLinkFromPage(page: any): NotionLink {
     created = properties.Created.date.start;
   }
 
+  // Extract Nr
+  let nr: number | undefined;
+  if (properties.Nr?.number !== undefined && properties.Nr?.number !== null) {
+    nr = properties.Nr.number;
+  }
+
   return {
     id: page.id,
     title,
     url,
     category,
-    created
+    created,
+    nr
   };
 }
 

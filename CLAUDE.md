@@ -118,11 +118,13 @@ The bot expects a Notion database with these exact property names:
 - **URL** (URL type) - The actual link
 - **Category** (Select type) - Dynamically managed by the bot. Users can create new categories on-the-fly via the "Other" option
 - **Created** (Date type) - Timestamp set by the bot when link is saved
+- **Nr** (Number type) - Auto-incrementing record number set by the bot
 
 **Important**:
 - The bot fetches categories dynamically from the database's Category select property
 - New categories are automatically added to the database when users create them
 - The Created field must be a "Date" type (not "Created time") for the bot to set it explicitly
+- The Nr field is automatically set to the highest existing Nr value + 1 when a new link is saved
 
 Share the database with your Notion integration for the bot to access it.
 
