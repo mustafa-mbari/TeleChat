@@ -8,6 +8,35 @@ const notion = new Client({
 const databaseId = process.env.NOTION_TODO_DB_ID!;
 
 /**
+ * Get the maximum Nr value from the database
+ */
+async function getMaxNr(): Promise<number> {
+  try {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      page_size: 1,
+      sorts: [
+        {
+          property: 'Nr',
+          direction: 'descending'
+        }
+      ]
+    });
+
+    if (response.results.length > 0) {
+      const page = response.results[0] as any;
+      const nrValue = page.properties.Nr?.number;
+      return nrValue || 0;
+    }
+
+    return 0;
+  } catch (error) {
+    console.error('Error getting max Nr:', error);
+    return 0;
+  }
+}
+
+/**
  * Create a new todo in Notion database
  */
 export async function createTodo(
@@ -15,6 +44,10 @@ export async function createTodo(
   priority: TodoPriority = 'Medium'
 ): Promise<{ success: boolean; pageId?: string; todo?: NotionTodo; error?: string }> {
   try {
+    // Get the next Nr value
+    const maxNr = await getMaxNr();
+    const nextNr = maxNr + 1;
+
     const response = await notion.pages.create({
       parent: { database_id: databaseId },
       properties: {
@@ -41,6 +74,9 @@ export async function createTodo(
           date: {
             start: new Date().toISOString()
           }
+        },
+        Nr: {
+          number: nextNr
         }
       }
     });
@@ -224,12 +260,19 @@ function extractTodoFromPage(page: any): NotionTodo {
     created = properties.Created.date.start;
   }
 
+  // Extract Nr
+  let nr: number | undefined;
+  if (properties.Nr?.number !== undefined && properties.Nr?.number !== null) {
+    nr = properties.Nr.number;
+  }
+
   return {
     id: page.id,
     title,
     status,
     priority,
-    created
+    created,
+    nr
   };
 }
 

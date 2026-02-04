@@ -8,6 +8,7 @@ export interface NotionTodo {
   status: 'Pending' | 'Done';
   priority: 'High' | 'Medium' | 'Low';
   created: string;      // ISO date string
+  nr?: number;          // Auto-incrementing record number
 }
 
 export interface EditModeState {
