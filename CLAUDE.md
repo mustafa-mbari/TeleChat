@@ -34,7 +34,7 @@ This bot uses **in-memory state** for temporary data via [lib/memory.ts](lib/mem
 - **Rate limiting** (`Map<userId, timestamp[]>`) - Request timestamps per user
 - **Search mode** (`Map<chatId, boolean>`) - Whether user is in search mode
 - **New category mode** (`Map<chatId, boolean>`) - Whether user is entering a new category name
-- **Delete mode** (`Map<chatId, boolean>`) - Whether user is in delete mode
+- **Pending description** (`Map<chatId, url>`) - URL awaiting a description from the user
 
 All persistent data lives in Notion via [lib/notion.ts](lib/notion.ts).
 
@@ -45,7 +45,7 @@ The bot uses Telegram's inline keyboard callback_data to handle button interacti
 - `category:Work` - User selected "Work" category
 - `category:__other__` - User wants to create a new category
 - `delete:pageId` - User wants to delete link with this Notion page ID
-- `force_save:url` - User confirmed saving a duplicate URL
+- `force_save` - User confirmed saving a duplicate URL (URL is stored in memory)
 - `cancel` - User cancelled the operation
 
 These are parsed in the `handleCallbackQuery()` function in [app/api/telegram/route.ts](app/api/telegram/route.ts).
@@ -58,10 +58,10 @@ The bot maintains conversation state through memory flags:
 2. **Pending URL mode**: URL stored in memory, awaiting category selection
 3. **Search mode**: Next message is treated as search keyword
 4. **New category mode**: Next message is treated as new category name
-5. **Description mode**: After saving a link, bot prompts user to reply with a description (stateless, uses Telegram's force\_reply)
+5. **Pending description mode**: After saving a link, next message is treated as description (memory-based via `pendingDescription` map). Sending a URL auto-skips description mode.
 6. **Delete mode**: Handled via inline buttons (not a separate mode)
 
-Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearchMode()`, `disableSearchMode()`, `enableNewCategoryMode()`, `disableNewCategoryMode()`, etc.
+Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearchMode()`, `disableSearchMode()`, `enableNewCategoryMode()`, `disableNewCategoryMode()`, `enablePendingDescription()`, `disablePendingDescription()`, etc.
 
 ## Module Responsibilities
 
@@ -69,13 +69,13 @@ Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearch
 - Rate limit configuration
 - User authorization logic
 
-**Note**: Categories are now managed dynamically from Notion database. The `CATEGORIES` constant is no longer used.
+**Note**: Categories are managed dynamically from the Notion database.
 
 ### [lib/memory.ts](lib/memory.ts)
 - All in-memory state management
 - Rate limiting logic (sliding window)
 - Temporary URL storage before category selection
-- User mode tracking (search/delete/new category)
+- User mode tracking (search/new category/pending description)
 
 ### [lib/notion.ts](lib/notion.ts)
 - Notion API client wrapper

@@ -5,7 +5,7 @@ A serverless Telegram bot built with Next.js that saves links to your Notion dat
 ## ✨ Features
 
 - 📎 **Save URLs**: Send any URL and categorize it
-- 🏷️ **Categories**: Work, Study, Video, Other (easily customizable)
+- 🏷️ **Categories**: Dynamic categories (create new ones directly from the bot)
 - 🔍 **Search**: Search saved links by keyword
 - 📋 **List**: View recent links
 - 🗑️ **Delete**: Remove links from database
@@ -145,7 +145,7 @@ https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
 1. **Start the bot**: Send `/start` or `/help`
 2. **Save a link**: Send any URL
 3. **Choose category**: Click a category button
-4. **Add description**: Reply to the bot's message with a description (or /skip)
+4. **Add description**: Send a description (or /skip)
 5. **Done!** ✅ Link saved to Notion
 
 ### Commands
@@ -170,9 +170,9 @@ You: *clicks Video*
 Bot: ✅ Link saved successfully!
      📂 Category: Video
      🌐 https://youtube.com/watch?v=example
-     👇 Reply to this message to add a description (or type /skip)
+     📝 Send a description for this link (or type /skip)
 
-You: *replies* Great tutorial on React hooks
+You: Great tutorial on React hooks
 
 Bot: ✅ Description saved successfully!
 ```
@@ -201,20 +201,13 @@ Bot: 🔍 Search Results (3)
 
 ### Adding New Categories
 
-Edit `lib/config.ts`:
+Categories are managed dynamically! Users can create new categories directly through the bot:
+1. Send a URL to the bot
+2. Select "➕ Other (Create New)" from the category buttons
+3. Enter the new category name
+4. The category is automatically added to Notion and available for all future saves
 
-```typescript
-export const CATEGORIES = [
-  'Work',
-  'Study',
-  'Video',
-  'Other',
-  'Shopping',  // Add new category
-  'Recipes'    // Add new category
-] as const;
-```
-
-**Important**: Also add these categories to your Notion database's Category select property!
+Alternatively, add categories manually in your Notion database's Category select property.
 
 ### Rate Limiting
 
