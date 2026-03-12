@@ -333,18 +333,22 @@ export async function addCategory(categoryName: string): Promise<boolean> {
 }
 
 /**
- * Clean a URL for use as a title - extracts just the site name with first letter capitalized
- * e.g. "https://www.reddit.com/r/ClaudeAI/s/SttW2ue0sP" -> "Reddit"
+ * Clean a URL for use as a title - extracts site name without TLD, first letter capitalized
+ * e.g. "https://www.reddit.com/r/ClaudeAI" -> "Reddit"
+ * e.g. "https://web.telegram.org/a/Gim" -> "Web.telegram"
  * e.g. "https://youtube.com/watch?v=abc" -> "Youtube"
  */
 function cleanUrlForTitle(url: string): string {
   try {
     const parsed = new URL(url);
-    // Remove www. and extract the domain name (without TLD)
+    // Remove www. prefix
     const host = parsed.hostname.replace(/^www\./, '');
-    const siteName = host.split('.')[0];
+    // Remove TLD (last segment after the last dot)
+    const parts = host.split('.');
+    // Drop the TLD (last part)
+    const nameWithoutTld = parts.slice(0, -1).join('.');
     // Capitalize first letter
-    return siteName.charAt(0).toUpperCase() + siteName.slice(1);
+    return nameWithoutTld.charAt(0).toUpperCase() + nameWithoutTld.slice(1);
   } catch {
     return url;
   }

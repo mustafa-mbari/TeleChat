@@ -33,7 +33,10 @@ import {
   isInSearchMode,
   enableNewCategoryMode,
   disableNewCategoryMode,
-  isInNewCategoryMode
+  isInNewCategoryMode,
+  enablePendingDescription,
+  disablePendingDescription,
+  getPendingDescriptionUrl
 } from '@/lib/memory';
 import { isUserAuthorized } from '@/lib/config';
 
@@ -102,13 +105,11 @@ async function handleMessage(update: TelegramUpdate) {
     return;
   }
 
-  // Handle reply for description (user replied to the "Link saved" message)
-  if (message.reply_to_message?.from?.is_bot) {
-    const parentText = message.reply_to_message.text || '';
-    if (parentText.includes('Link saved successfully') && parentText.includes('Reply to this message')) {
-      await handleDescriptionInput(chatId, text, parentText);
-      return;
-    }
+  // Handle pending description mode (user is expected to type a description)
+  const pendingUrl = getPendingDescriptionUrl(chatId);
+  if (pendingUrl) {
+    await handleDescriptionInput(chatId, text, pendingUrl);
+    return;
   }
 
   // Handle URL
@@ -297,17 +298,12 @@ async function handleCategorySelection(
 
   if (result.success) {
     await answerCallbackQuery(callbackQueryId, 'Category selected');
+    enablePendingDescription(chatId, url);
     const escapedUrl = escapeMarkdown(url);
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(category)}\n🌐 ${escapedUrl}\n\n👇 *Reply to this message* to add a description \\(or type /skip\\)`,
-      {
-        parse_mode: 'MarkdownV2',
-        reply_markup: {
-          force_reply: true,
-          input_field_placeholder: 'Add a description...'
-        }
-      }
+      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(category)}\n🌐 ${escapedUrl}\n\n📝 Send a description for this link \\(or type /skip\\)`,
+      { parse_mode: 'MarkdownV2' }
     );
   } else {
     await answerCallbackQuery(callbackQueryId, 'Error saving');
@@ -364,17 +360,12 @@ async function handleNewCategoryInput(chatId: number, categoryName: string) {
   removeTempLink(chatId);
 
   if (result.success) {
+    enablePendingDescription(chatId, url);
     const escapedUrl = escapeMarkdown(url);
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(trimmedName)} \\(NEW\\)\n🌐 ${escapedUrl}\n\n👇 *Reply to this message* to add a description \\(or type /skip\\)`,
-      {
-        parse_mode: 'MarkdownV2',
-        reply_markup: {
-          force_reply: true,
-          input_field_placeholder: 'Add a description...'
-        }
-      }
+      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(trimmedName)} \\(NEW\\)\n🌐 ${escapedUrl}\n\n📝 Send a description for this link \\(or type /skip\\)`,
+      { parse_mode: 'MarkdownV2' }
     );
   } else {
     await sendMessage(
@@ -385,23 +376,18 @@ async function handleNewCategoryInput(chatId: number, categoryName: string) {
 }
 
 /**
- * Handle description input via reply
+ * Handle description input (user typed a description for the last saved link)
  */
-async function handleDescriptionInput(chatId: number, text: string, parentText: string) {
+async function handleDescriptionInput(chatId: number, text: string, url: string) {
   // Check for cancel/skip
   if (text.toLowerCase() === '/cancel' || text.toLowerCase() === '/skip') {
+    disablePendingDescription(chatId);
     await sendMessage(chatId, '⏭️ Description skipped.');
     return;
   }
 
-  // Extract URL from the bot's parent message
-  const url = extractUrl(parentText);
-  if (!url) {
-    await sendMessage(chatId, '❌ Could not extract URL from the replied message. Description not saved.');
-    return;
-  }
-
   const description = text.trim();
+  disablePendingDescription(chatId);
 
   // Update Description in Notion
   const success = await updateDescriptionByUrl(url, description);

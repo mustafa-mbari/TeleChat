@@ -182,6 +182,33 @@ export function isInNewCategoryMode(chatId: number): boolean {
 }
 
 /**
+ * Pending description mode - waiting for user to input description for a saved link
+ * Map structure: chatId -> url (the URL that needs a description)
+ */
+const pendingDescription = new Map<number, string>();
+
+/**
+ * Enable pending description mode for user (stores the URL to update)
+ */
+export function enablePendingDescription(chatId: number, url: string): void {
+  pendingDescription.set(chatId, url);
+}
+
+/**
+ * Disable pending description mode for user
+ */
+export function disablePendingDescription(chatId: number): void {
+  pendingDescription.delete(chatId);
+}
+
+/**
+ * Get pending description URL (returns the URL if in pending description mode)
+ */
+export function getPendingDescriptionUrl(chatId: number): string | undefined {
+  return pendingDescription.get(chatId);
+}
+
+/**
  * Get memory statistics (for debugging)
  */
 export function getMemoryStats() {
@@ -190,6 +217,7 @@ export function getMemoryStats() {
     rateLimitedUsers: rateLimitMap.size,
     searchModeUsers: searchMode.size,
     deleteModeUsers: deleteMode.size,
-    newCategoryModeUsers: newCategoryMode.size
+    newCategoryModeUsers: newCategoryMode.size,
+    pendingDescriptionUsers: pendingDescription.size
   };
 }
