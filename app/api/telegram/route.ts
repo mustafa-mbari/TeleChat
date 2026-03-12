@@ -184,6 +184,8 @@ async function handleUrlMessage(chatId: number, url: string) {
     const isDuplicate = await checkDuplicateUrl(url);
 
     if (isDuplicate) {
+      // Store URL in memory so we can retrieve it on force_save callback
+      storeTempLink(chatId, url);
       await sendMessage(
         chatId,
         '⚠️ This URL already exists in your database!\n\nDo you want to save it again?',
@@ -191,7 +193,7 @@ async function handleUrlMessage(chatId: number, url: string) {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '✅ Yes, save anyway', callback_data: `force_save:${url}` },
+                { text: '✅ Yes, save anyway', callback_data: 'force_save' },
                 { text: '❌ Cancel', callback_data: 'cancel' }
               ]
             ]
@@ -235,10 +237,8 @@ async function handleCallbackQuery(update: TelegramUpdate) {
     return;
   }
 
-  // Handle force save
-  if (data.startsWith('force_save:')) {
-    const url = data.replace('force_save:', '');
-    storeTempLink(chatId, url);
+  // Handle force save (URL is already stored in memory from handleUrlMessage)
+  if (data === 'force_save') {
     await sendCategoryButtons(chatId, '📎 Choose a category:');
     await answerCallbackQuery(callbackQuery.id);
     return;
