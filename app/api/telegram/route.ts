@@ -8,7 +8,8 @@ import {
   extractUrl,
   sendHelpMessage,
   formatLink,
-  createDeleteButton
+  createDeleteButton,
+  escapeMarkdown
 } from '@/lib/telegram';
 import {
   saveToNotion,
@@ -101,10 +102,10 @@ async function handleMessage(update: TelegramUpdate) {
     return;
   }
 
-  // Handle reply for description
+  // Handle reply for description (user replied to the "Link saved" message)
   if (message.reply_to_message?.from?.is_bot) {
     const parentText = message.reply_to_message.text || '';
-    if (parentText.includes('Reply to this message') || parentText.includes('please send a description')) {
+    if (parentText.includes('Link saved successfully') && parentText.includes('Reply to this message')) {
       await handleDescriptionInput(chatId, text, parentText);
       return;
     }
@@ -296,11 +297,12 @@ async function handleCategorySelection(
 
   if (result.success) {
     await answerCallbackQuery(callbackQueryId, 'Category selected');
+    const escapedUrl = escapeMarkdown(url);
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully!*\n\n📂 Category: ${category}\n🌐 ${url}\n\n👇 *Reply to this message* to add a description (or type /skip to leave empty).`,
-      { 
-        parse_mode: 'Markdown',
+      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(category)}\n🌐 ${escapedUrl}\n\n👇 *Reply to this message* to add a description \\(or type /skip\\)`,
+      {
+        parse_mode: 'MarkdownV2',
         reply_markup: {
           force_reply: true,
           input_field_placeholder: 'Add a description...'
@@ -362,11 +364,12 @@ async function handleNewCategoryInput(chatId: number, categoryName: string) {
   removeTempLink(chatId);
 
   if (result.success) {
+    const escapedUrl = escapeMarkdown(url);
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully!*\n\n📂 Category: ${trimmedName} (NEW)\n🌐 ${url}\n\n👇 *Reply to this message* to add a description (or type /skip to leave empty).`,
-      { 
-        parse_mode: 'Markdown',
+      `✅ *Link saved successfully\\!*\n\n📂 Category: ${escapeMarkdown(trimmedName)} \\(NEW\\)\n🌐 ${escapedUrl}\n\n👇 *Reply to this message* to add a description \\(or type /skip\\)`,
+      {
+        parse_mode: 'MarkdownV2',
         reply_markup: {
           force_reply: true,
           input_field_placeholder: 'Add a description...'
@@ -406,8 +409,8 @@ async function handleDescriptionInput(chatId: number, text: string, parentText: 
   if (success) {
     await sendMessage(
       chatId,
-      `✅ *Description saved successfully!*`,
-      { parse_mode: 'Markdown' }
+      `✅ *Description saved successfully\\!*`,
+      { parse_mode: 'MarkdownV2' }
     );
   } else {
     await sendMessage(
@@ -429,16 +432,21 @@ async function handleListCommand(chatId: number) {
       return;
     }
 
-    await sendMessage(chatId, `📚 *Recent Links* (${links.length})\n`, {
-      parse_mode: 'Markdown'
+    await sendMessage(chatId, `📚 *Recent Links* \\(${links.length}\\)\n`, {
+      parse_mode: 'MarkdownV2'
     });
 
     for (const link of links) {
       const formattedDate = formatDate(link.created);
-      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n${link.description ? `📝 ${link.description}\n` : ''}🌐 ${link.url}`;
+      const eTitle = escapeMarkdown(link.title);
+      const eCat = escapeMarkdown(link.category);
+      const eUrl = escapeMarkdown(link.url);
+      const eDate = escapeMarkdown(formattedDate);
+      const eDesc = link.description ? `📝 ${escapeMarkdown(link.description)}\n` : '';
+      const text = `🔗 *${eTitle}*\n📂 ${eCat}\n📅 ${eDate}\n${eDesc}🌐 ${eUrl}`;
 
       await sendMessage(chatId, text, {
-        parse_mode: 'Markdown',
+        parse_mode: 'MarkdownV2',
         reply_markup: createDeleteButton(link.id),
         disable_web_page_preview: true
       });
@@ -479,24 +487,29 @@ async function handleSearchQuery(chatId: number, keyword: string) {
     if (links.length === 0) {
       await sendMessage(
         chatId,
-        `🔍 No links found for: *${keyword}*`,
-        { parse_mode: 'Markdown' }
+        `🔍 No links found for: *${escapeMarkdown(keyword)}*`,
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
 
     await sendMessage(
       chatId,
-      `🔍 *Search Results* (${links.length})\nKeyword: *${keyword}*\n`,
-      { parse_mode: 'Markdown' }
+      `🔍 *Search Results* \\(${links.length}\\)\nKeyword: *${escapeMarkdown(keyword)}*\n`,
+      { parse_mode: 'MarkdownV2' }
     );
 
     for (const link of links) {
       const formattedDate = formatDate(link.created);
-      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n${link.description ? `📝 ${link.description}\n` : ''}🌐 ${link.url}`;
+      const eTitle = escapeMarkdown(link.title);
+      const eCat = escapeMarkdown(link.category);
+      const eUrl = escapeMarkdown(link.url);
+      const eDate = escapeMarkdown(formattedDate);
+      const eDesc = link.description ? `📝 ${escapeMarkdown(link.description)}\n` : '';
+      const text = `🔗 *${eTitle}*\n📂 ${eCat}\n📅 ${eDate}\n${eDesc}🌐 ${eUrl}`;
 
       await sendMessage(chatId, text, {
-        parse_mode: 'Markdown',
+        parse_mode: 'MarkdownV2',
         reply_markup: createDeleteButton(link.id),
         disable_web_page_preview: true
       });

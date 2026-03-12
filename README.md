@@ -35,10 +35,12 @@ User → Telegram Bot → Vercel (Next.js API) → Notion API → Notion Databas
 
 3. **Notion Database**
    - Create a new database in Notion with these properties:
-     - **Title** (Title type)
+     - **Title** (Title type) - Auto-generated site name from URL
      - **URL** (URL type)
      - **Category** (Select type with options: Work, Study, Video, Other)
-     - **Created** (Created time type)
+     - **Description** (Rich text type) - Optional description
+     - **Created** (Date type) - Set by the bot
+     - **Nr** (Number type) - Auto-incrementing
    - Share the database with your integration
    - Copy the database ID from the URL: `notion.so/workspace/[DATABASE_ID]?v=...`
 
@@ -143,7 +145,8 @@ https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
 1. **Start the bot**: Send `/start` or `/help`
 2. **Save a link**: Send any URL
 3. **Choose category**: Click a category button
-4. **Done!** ✅ Link saved to Notion
+4. **Add description**: Reply to the bot's message with a description (or /skip)
+5. **Done!** ✅ Link saved to Notion
 
 ### Commands
 
@@ -167,6 +170,11 @@ You: *clicks Video*
 Bot: ✅ Link saved successfully!
      📂 Category: Video
      🌐 https://youtube.com/watch?v=example
+     👇 Reply to this message to add a description (or type /skip)
+
+You: *replies* Great tutorial on React hooks
+
+Bot: ✅ Description saved successfully!
 ```
 
 ### Search
@@ -291,7 +299,9 @@ Health check endpoint
    - Title (Title)
    - URL (URL)
    - Category (Select)
-   - Created (Created time)
+   - Description (Rich text)
+   - Created (Date)
+   - Nr (Number)
 
 ### Duplicate detection not working
 

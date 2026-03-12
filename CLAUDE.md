@@ -58,7 +58,8 @@ The bot maintains conversation state through memory flags:
 2. **Pending URL mode**: URL stored in memory, awaiting category selection
 3. **Search mode**: Next message is treated as search keyword
 4. **New category mode**: Next message is treated as new category name
-5. **Delete mode**: Handled via inline buttons (not a separate mode)
+5. **Description mode**: After saving a link, bot prompts user to reply with a description (stateless, uses Telegram's force\_reply)
+6. **Delete mode**: Handled via inline buttons (not a separate mode)
 
 Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearchMode()`, `disableSearchMode()`, `enableNewCategoryMode()`, `disableNewCategoryMode()`, etc.
 
@@ -78,7 +79,7 @@ Mode transitions are managed in [lib/memory.ts](lib/memory.ts) via `enableSearch
 
 ### [lib/notion.ts](lib/notion.ts)
 - Notion API client wrapper
-- CRUD operations: `saveToNotion()`, `getRecentLinks()`, `searchLinks()`, `deleteLink()`
+- CRUD operations: `saveToNotion()`, `getRecentLinks()`, `searchLinks()`, `deleteLink()`, `updateDescriptionByUrl()`
 - Category management: `getCategories()`, `addCategory()`
 - Duplicate detection: `checkDuplicateUrl()`
 - Data extraction from Notion's complex response format
@@ -114,9 +115,10 @@ ALLOWED_USER_IDS=      # Comma-separated user IDs (empty = allow all)
 
 The bot expects a Notion database with these exact property names:
 
-- **Title** (Title type) - Link title/hostname
+- **Title** (Title type) - Auto-generated site name (e.g. "Reddit", "Youtube") extracted from the URL hostname
 - **URL** (URL type) - The actual link
 - **Category** (Select type) - Dynamically managed by the bot. Users can create new categories on-the-fly via the "Other" option
+- **Description** (Rich text type) - Optional description added by the user after saving a link
 - **Created** (Date type) - Timestamp set by the bot when link is saved
 - **Nr** (Number type) - Auto-incrementing record number set by the bot
 

@@ -103,6 +103,14 @@ export async function answerCallbackQuery(
 }
 
 /**
+ * Escape special Markdown characters in text
+ * Prevents URLs with underscores or other chars from breaking Markdown parsing
+ */
+export function escapeMarkdown(text: string): string {
+  return text.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
+}
+
+/**
  * Extract URLs from message text
  */
 export function extractUrl(text: string): string | null {

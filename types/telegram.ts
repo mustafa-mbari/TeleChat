@@ -65,6 +65,6 @@ export interface TelegramForceReply {
 
 export interface TelegramSendMessageOptions {
   reply_markup?: TelegramInlineKeyboardMarkup | TelegramForceReply;
-  parse_mode?: 'Markdown' | 'HTML';
+  parse_mode?: 'Markdown' | 'MarkdownV2' | 'HTML';
   disable_web_page_preview?: boolean;
 }

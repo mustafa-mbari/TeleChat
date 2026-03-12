@@ -56,8 +56,8 @@ export async function saveToNotion(
   description?: string
 ): Promise<{ success: boolean; pageId?: string; error?: string }> {
   try {
-    // Use URL as title if no title provided
-    const pageTitle = title || new URL(url).hostname;
+    // Use cleaned URL as title if no title provided
+    const pageTitle = title || cleanUrlForTitle(url);
 
     // Get the next Nr value
     const maxNr = await getMaxNr();
@@ -329,6 +329,24 @@ export async function addCategory(categoryName: string): Promise<boolean> {
   } catch (error) {
     console.error('Error adding category:', error);
     return false;
+  }
+}
+
+/**
+ * Clean a URL for use as a title - extracts just the site name with first letter capitalized
+ * e.g. "https://www.reddit.com/r/ClaudeAI/s/SttW2ue0sP" -> "Reddit"
+ * e.g. "https://youtube.com/watch?v=abc" -> "Youtube"
+ */
+function cleanUrlForTitle(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Remove www. and extract the domain name (without TLD)
+    const host = parsed.hostname.replace(/^www\./, '');
+    const siteName = host.split('.')[0];
+    // Capitalize first letter
+    return siteName.charAt(0).toUpperCase() + siteName.slice(1);
+  } catch {
+    return url;
   }
 }
 
