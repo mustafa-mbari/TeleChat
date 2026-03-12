@@ -17,7 +17,8 @@ import {
   searchLinks,
   deleteLink,
   formatDate,
-  addCategory
+  addCategory,
+  updateDescriptionByUrl
 } from '@/lib/notion';
 import {
   storeTempLink,
@@ -31,11 +32,7 @@ import {
   isInSearchMode,
   enableNewCategoryMode,
   disableNewCategoryMode,
-  isInNewCategoryMode,
-  enableDescriptionMode,
-  disableDescriptionMode,
-  isInDescriptionMode,
-  getDescriptionContext
+  isInNewCategoryMode
 } from '@/lib/memory';
 import { isUserAuthorized } from '@/lib/config';
 
@@ -104,10 +101,13 @@ async function handleMessage(update: TelegramUpdate) {
     return;
   }
 
-  // Handle description mode
-  if (isInDescriptionMode(chatId)) {
-    await handleDescriptionInput(chatId, text);
-    return;
+  // Handle reply for description
+  if (message.reply_to_message?.from?.is_bot) {
+    const parentText = message.reply_to_message.text || '';
+    if (parentText.includes('Reply to this message') || parentText.includes('please send a description')) {
+      await handleDescriptionInput(chatId, text, parentText);
+      return;
+    }
   }
 
   // Handle URL
@@ -289,16 +289,31 @@ async function handleCategorySelection(
     return;
   }
 
-  // Enable description mode
-  enableDescriptionMode(chatId, url, category);
+  // Save to Notion directly (stateless description)
+  const result = await saveToNotion(url, category);
+  
   removeTempLink(chatId);
 
-  await answerCallbackQuery(callbackQueryId, 'Category selected');
-  await sendMessage(
-    chatId,
-    `📂 *Category '${category}' selected.*\n\nNow, please send a description for this link (or type /skip to leave empty).`,
-    { parse_mode: 'Markdown' }
-  );
+  if (result.success) {
+    await answerCallbackQuery(callbackQueryId, 'Category selected');
+    await sendMessage(
+      chatId,
+      `✅ *Link saved successfully!*\n\n📂 Category: ${category}\n🌐 ${url}\n\n👇 *Reply to this message* to add a description (or type /skip to leave empty).`,
+      { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          force_reply: true,
+          input_field_placeholder: 'Add a description...'
+        }
+      }
+    );
+  } else {
+    await answerCallbackQuery(callbackQueryId, 'Error saving');
+    await sendMessage(
+      chatId,
+      `❌ Error saving to Notion: ${result.error}\n\nPlease try again.`
+    );
+  }
 }
 
 /**
@@ -340,53 +355,64 @@ async function handleNewCategoryInput(chatId: number, categoryName: string) {
     return;
   }
 
-  // Enter description mode
-  enableDescriptionMode(chatId, url, trimmedName);
+  // Save to Notion directly with new category
+  const result = await saveToNotion(url, trimmedName);
+  
   disableNewCategoryMode(chatId);
   removeTempLink(chatId);
-
-  await sendMessage(
-    chatId,
-    `📂 *Category '${trimmedName}' created and selected.*\n\nNow, please send a description for this link (or type /skip to leave empty).`,
-    { parse_mode: 'Markdown' }
-  );
-}
-
-/**
- * Handle description input
- */
-async function handleDescriptionInput(chatId: number, text: string) {
-  const context = getDescriptionContext(chatId);
-  if (!context) {
-    disableDescriptionMode(chatId);
-    await sendMessage(chatId, '❌ Session expired. Please send the URL again.');
-    return;
-  }
-
-  // Check for cancel/skip
-  if (text.toLowerCase() === '/cancel') {
-    disableDescriptionMode(chatId);
-    await sendMessage(chatId, '❌ Cancelled.');
-    return;
-  }
-
-  const isSkip = text.toLowerCase() === '/skip';
-  const description = isSkip ? undefined : text.trim();
-
-  // Save to Notion with description
-  const result = await saveToNotion(context.url, context.category, undefined, description);
 
   if (result.success) {
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully!*\n\n📂 Category: ${context.category}\n${description ? `📝 Description: ${description}\n` : ''}🌐 ${context.url}`,
-      { parse_mode: 'Markdown' }
+      `✅ *Link saved successfully!*\n\n📂 Category: ${trimmedName} (NEW)\n🌐 ${url}\n\n👇 *Reply to this message* to add a description (or type /skip to leave empty).`,
+      { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          force_reply: true,
+          input_field_placeholder: 'Add a description...'
+        }
+      }
     );
-    disableDescriptionMode(chatId);
   } else {
     await sendMessage(
       chatId,
       `❌ Error saving to Notion: ${result.error}\n\nPlease try again or use /cancel to cancel.`
+    );
+  }
+}
+
+/**
+ * Handle description input via reply
+ */
+async function handleDescriptionInput(chatId: number, text: string, parentText: string) {
+  // Check for cancel/skip
+  if (text.toLowerCase() === '/cancel' || text.toLowerCase() === '/skip') {
+    await sendMessage(chatId, '⏭️ Description skipped.');
+    return;
+  }
+
+  // Extract URL from the bot's parent message
+  const url = extractUrl(parentText);
+  if (!url) {
+    await sendMessage(chatId, '❌ Could not extract URL from the replied message. Description not saved.');
+    return;
+  }
+
+  const description = text.trim();
+
+  // Update Description in Notion
+  const success = await updateDescriptionByUrl(url, description);
+
+  if (success) {
+    await sendMessage(
+      chatId,
+      `✅ *Description saved successfully!*`,
+      { parse_mode: 'Markdown' }
+    );
+  } else {
+    await sendMessage(
+      chatId,
+      `❌ Error updating description in Notion. The link may not exist anymore.`
     );
   }
 }

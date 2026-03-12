@@ -209,6 +209,56 @@ export async function deleteLink(pageId: string): Promise<boolean> {
 }
 
 /**
+ * Update the description of a link by its URL
+ */
+export async function updateDescriptionByUrl(url: string, description: string): Promise<boolean> {
+  try {
+    const response = await notion.databases.query({
+      database_id: databaseId,
+      filter: {
+        property: 'URL',
+        url: {
+          equals: url
+        }
+      },
+      sorts: [
+        {
+          property: 'Created',
+          direction: 'descending'
+        }
+      ],
+      page_size: 1
+    });
+
+    if (response.results.length === 0) {
+      return false;
+    }
+
+    const pageId = response.results[0].id;
+
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        Description: {
+          rich_text: [
+            {
+              text: {
+                content: description
+              }
+            }
+          ]
+        }
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error updating description:', error);
+    return false;
+  }
+}
+
+/**
  * Get all available categories from Notion database
  */
 export async function getCategories(): Promise<string[]> {

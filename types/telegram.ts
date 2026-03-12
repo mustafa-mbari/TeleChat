@@ -23,6 +23,7 @@ export interface TelegramMessage {
   date: number;
   text?: string;
   entities?: TelegramMessageEntity[];
+  reply_to_message?: TelegramMessage;
 }
 
 export interface TelegramMessageEntity {
@@ -56,8 +57,14 @@ export interface TelegramInlineKeyboardMarkup {
   inline_keyboard: TelegramInlineKeyboardButton[][];
 }
 
+export interface TelegramForceReply {
+  force_reply: boolean;
+  input_field_placeholder?: string;
+  selective?: boolean;
+}
+
 export interface TelegramSendMessageOptions {
-  reply_markup?: TelegramInlineKeyboardMarkup;
+  reply_markup?: TelegramInlineKeyboardMarkup | TelegramForceReply;
   parse_mode?: 'Markdown' | 'HTML';
   disable_web_page_preview?: boolean;
 }
