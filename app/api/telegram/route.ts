@@ -91,12 +91,7 @@ async function handleMessage(update: TelegramUpdate) {
   // Record request
   recordRequest(userId);
 
-  // Handle commands
-  if (text.startsWith('/')) {
-    await handleCommand(chatId, text, userId);
-    return;
-  }
-
+  // Modes should have priority over global commands so /cancel AND /skip work
   // Handle search mode
   if (isInSearchMode(chatId)) {
     await handleSearchQuery(chatId, text);
@@ -125,6 +120,12 @@ async function handleMessage(update: TelegramUpdate) {
   const url = extractUrl(text);
   if (url) {
     await handleUrlMessage(chatId, url);
+    return;
+  }
+
+  // Handle commands (fallback if not in any mode)
+  if (text.startsWith('/')) {
+    await handleCommand(chatId, text, userId);
     return;
   }
 
