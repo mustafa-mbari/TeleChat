@@ -1,19 +1,6 @@
 /**
  * Bot Configuration
- *
- * To add new categories:
- * 1. Add the category name to the CATEGORIES array below
- * 2. Make sure the same category exists in your Notion database's Category select property
  */
-
-export const CATEGORIES = [
-  'Work',
-  'Study',
-  'Video',
-  'Other'
-] as const;
-
-export type Category = typeof CATEGORIES[number];
 
 /**
  * Rate limiting configuration

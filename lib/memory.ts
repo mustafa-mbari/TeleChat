@@ -128,33 +128,6 @@ export function isInSearchMode(chatId: number): boolean {
 }
 
 /**
- * Delete state management
- * Map structure: chatId -> waiting for page ID
- */
-const deleteMode = new Map<number, boolean>();
-
-/**
- * Enable delete mode for user
- */
-export function enableDeleteMode(chatId: number): void {
-  deleteMode.set(chatId, true);
-}
-
-/**
- * Disable delete mode for user
- */
-export function disableDeleteMode(chatId: number): void {
-  deleteMode.delete(chatId);
-}
-
-/**
- * Check if user is in delete mode
- */
-export function isInDeleteMode(chatId: number): boolean {
-  return deleteMode.get(chatId) || false;
-}
-
-/**
  * New category mode - waiting for user to input new category name
  * Map structure: chatId -> true/false
  */
@@ -216,7 +189,6 @@ export function getMemoryStats() {
     tempLinks: tempLinks.size,
     rateLimitedUsers: rateLimitMap.size,
     searchModeUsers: searchMode.size,
-    deleteModeUsers: deleteMode.size,
     newCategoryModeUsers: newCategoryMode.size,
     pendingDescriptionUsers: pendingDescription.size
   };

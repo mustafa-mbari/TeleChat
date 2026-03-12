@@ -1,5 +1,4 @@
 import { Client } from '@notionhq/client';
-import type { Category } from './config';
 
 const notion = new Client({
   auth: process.env.NOTION_SECRET
@@ -343,10 +342,10 @@ function cleanUrlForTitle(url: string): string {
     const parsed = new URL(url);
     // Remove www. prefix
     const host = parsed.hostname.replace(/^www\./, '');
-    // Remove TLD (last segment after the last dot)
     const parts = host.split('.');
-    // Drop the TLD (last part)
-    const nameWithoutTld = parts.slice(0, -1).join('.');
+    // If only one part (e.g. "localhost"), use it as-is
+    // Otherwise drop the TLD (last part)
+    const nameWithoutTld = parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0];
     // Capitalize first letter
     return nameWithoutTld.charAt(0).toUpperCase() + nameWithoutTld.slice(1);
   } catch {
@@ -413,7 +412,9 @@ function extractLinkFromPage(page: any): NotionLink {
  * Format date for display
  */
 export function formatDate(isoString: string): string {
+  if (!isoString) return 'Unknown';
   const date = new Date(isoString);
+  if (isNaN(date.getTime())) return 'Unknown';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

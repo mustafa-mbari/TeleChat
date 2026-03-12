@@ -7,7 +7,6 @@ import {
   isUrl,
   extractUrl,
   sendHelpMessage,
-  formatLink,
   createDeleteButton,
   escapeMarkdown
 } from '@/lib/telegram';
@@ -108,8 +107,13 @@ async function handleMessage(update: TelegramUpdate) {
   // Handle pending description mode (user is expected to type a description)
   const pendingUrl = getPendingDescriptionUrl(chatId);
   if (pendingUrl) {
-    await handleDescriptionInput(chatId, text, pendingUrl);
-    return;
+    // If the user sends a URL instead, skip description and process the new URL
+    if (isUrl(text) || extractUrl(text)) {
+      disablePendingDescription(chatId);
+    } else {
+      await handleDescriptionInput(chatId, text, pendingUrl);
+      return;
+    }
   }
 
   // Handle URL
@@ -233,6 +237,7 @@ async function handleCallbackQuery(update: TelegramUpdate) {
   // Handle cancel
   if (data === 'cancel') {
     removeTempLink(chatId);
+    disablePendingDescription(chatId);
     await answerCallbackQuery(callbackQuery.id, 'Cancelled');
     await sendMessage(chatId, '❌ Cancelled.');
     return;
