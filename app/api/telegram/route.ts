@@ -31,7 +31,11 @@ import {
   isInSearchMode,
   enableNewCategoryMode,
   disableNewCategoryMode,
-  isInNewCategoryMode
+  isInNewCategoryMode,
+  enableDescriptionMode,
+  disableDescriptionMode,
+  isInDescriptionMode,
+  getDescriptionContext
 } from '@/lib/memory';
 import { isUserAuthorized } from '@/lib/config';
 
@@ -102,6 +106,12 @@ async function handleMessage(update: TelegramUpdate) {
   // Handle new category mode
   if (isInNewCategoryMode(chatId)) {
     await handleNewCategoryInput(chatId, text);
+    return;
+  }
+
+  // Handle description mode
+  if (isInDescriptionMode(chatId)) {
+    await handleDescriptionInput(chatId, text);
     return;
   }
 
@@ -278,24 +288,16 @@ async function handleCategorySelection(
     return;
   }
 
-  // Save to Notion
-  const result = await saveToNotion(url, category);
+  // Enable description mode
+  enableDescriptionMode(chatId, url, category);
+  removeTempLink(chatId);
 
-  if (result.success) {
-    await answerCallbackQuery(callbackQueryId, 'Saved successfully!');
-    await sendMessage(
-      chatId,
-      `✅ *Link saved successfully!*\n\n📂 Category: ${category}\n🌐 ${url}`,
-      { parse_mode: 'Markdown' }
-    );
-    removeTempLink(chatId);
-  } else {
-    await answerCallbackQuery(callbackQueryId, 'Error saving');
-    await sendMessage(
-      chatId,
-      `❌ Error saving to Notion: ${result.error}\n\nPlease try again.`
-    );
-  }
+  await answerCallbackQuery(callbackQueryId, 'Category selected');
+  await sendMessage(
+    chatId,
+    `📂 *Category '${category}' selected.*\n\nNow, please send a description for this link (or type /skip to leave empty).`,
+    { parse_mode: 'Markdown' }
+  );
 }
 
 /**
@@ -337,17 +339,49 @@ async function handleNewCategoryInput(chatId: number, categoryName: string) {
     return;
   }
 
-  // Save to Notion with new category
-  const result = await saveToNotion(url, trimmedName);
+  // Enter description mode
+  enableDescriptionMode(chatId, url, trimmedName);
+  disableNewCategoryMode(chatId);
+  removeTempLink(chatId);
+
+  await sendMessage(
+    chatId,
+    `📂 *Category '${trimmedName}' created and selected.*\n\nNow, please send a description for this link (or type /skip to leave empty).`,
+    { parse_mode: 'Markdown' }
+  );
+}
+
+/**
+ * Handle description input
+ */
+async function handleDescriptionInput(chatId: number, text: string) {
+  const context = getDescriptionContext(chatId);
+  if (!context) {
+    disableDescriptionMode(chatId);
+    await sendMessage(chatId, '❌ Session expired. Please send the URL again.');
+    return;
+  }
+
+  // Check for cancel/skip
+  if (text.toLowerCase() === '/cancel') {
+    disableDescriptionMode(chatId);
+    await sendMessage(chatId, '❌ Cancelled.');
+    return;
+  }
+
+  const isSkip = text.toLowerCase() === '/skip';
+  const description = isSkip ? undefined : text.trim();
+
+  // Save to Notion with description
+  const result = await saveToNotion(context.url, context.category, undefined, description);
 
   if (result.success) {
     await sendMessage(
       chatId,
-      `✅ *Link saved successfully!*\n\n📂 Category: ${trimmedName} (NEW)\n🌐 ${url}`,
+      `✅ *Link saved successfully!*\n\n📂 Category: ${context.category}\n${description ? `📝 Description: ${description}\n` : ''}🌐 ${context.url}`,
       { parse_mode: 'Markdown' }
     );
-    disableNewCategoryMode(chatId);
-    removeTempLink(chatId);
+    disableDescriptionMode(chatId);
   } else {
     await sendMessage(
       chatId,
@@ -374,7 +408,7 @@ async function handleListCommand(chatId: number) {
 
     for (const link of links) {
       const formattedDate = formatDate(link.created);
-      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n🌐 ${link.url}`;
+      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n${link.description ? `📝 ${link.description}\n` : ''}🌐 ${link.url}`;
 
       await sendMessage(chatId, text, {
         parse_mode: 'Markdown',
@@ -432,7 +466,7 @@ async function handleSearchQuery(chatId: number, keyword: string) {
 
     for (const link of links) {
       const formattedDate = formatDate(link.created);
-      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n🌐 ${link.url}`;
+      const text = `🔗 *${link.title}*\n📂 ${link.category}\n📅 ${formattedDate}\n${link.description ? `📝 ${link.description}\n` : ''}🌐 ${link.url}`;
 
       await sendMessage(chatId, text, {
         parse_mode: 'Markdown',

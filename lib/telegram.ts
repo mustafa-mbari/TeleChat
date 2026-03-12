@@ -150,8 +150,8 @@ export async function editMessageText(
 /**
  * Format link for display
  */
-export function formatLink(title: string, url: string, category: string): string {
-  return `🔗 *${title}*\n📂 Category: ${category}\n🌐 ${url}`;
+export function formatLink(title: string, url: string, category: string, description?: string): string {
+  return `🔗 *${title}*\n📂 Category: ${category}\n${description ? `📝 Description: ${description}\n` : ''}🌐 ${url}`;
 }
 
 /**

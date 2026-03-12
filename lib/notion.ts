@@ -43,6 +43,7 @@ export interface NotionLink {
   category: string;
   created: string;
   nr?: number;
+  description?: string;
 }
 
 /**
@@ -51,7 +52,8 @@ export interface NotionLink {
 export async function saveToNotion(
   url: string,
   category: string,
-  title?: string
+  title?: string,
+  description?: string
 ): Promise<{ success: boolean; pageId?: string; error?: string }> {
   try {
     // Use URL as title if no title provided
@@ -88,7 +90,18 @@ export async function saveToNotion(
         },
         Nr: {
           number: nextNr
-        }
+        },
+        ...(description ? {
+          Description: {
+            rich_text: [
+              {
+                text: {
+                  content: description
+                }
+              }
+            ]
+          }
+        } : {})
       }
     });
 
@@ -307,13 +320,20 @@ function extractLinkFromPage(page: any): NotionLink {
     nr = properties.Nr.number;
   }
 
+  // Extract description
+  let description;
+  if (properties.Description?.rich_text?.[0]?.text?.content) {
+    description = properties.Description.rich_text[0].text.content;
+  }
+
   return {
     id: page.id,
     title,
     url,
     category,
     created,
-    nr
+    nr,
+    description
   };
 }
 

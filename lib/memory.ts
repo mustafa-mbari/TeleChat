@@ -182,6 +182,28 @@ export function isInNewCategoryMode(chatId: number): boolean {
 }
 
 /**
+ * Description mode state management
+ * Map structure: chatId -> { url: string, category: string }
+ */
+const descriptionModeMap = new Map<number, { url: string, category: string }>();
+
+export function enableDescriptionMode(chatId: number, url: string, category: string): void {
+  descriptionModeMap.set(chatId, { url, category });
+}
+
+export function disableDescriptionMode(chatId: number): void {
+  descriptionModeMap.delete(chatId);
+}
+
+export function getDescriptionContext(chatId: number): { url: string, category: string } | undefined {
+  return descriptionModeMap.get(chatId);
+}
+
+export function isInDescriptionMode(chatId: number): boolean {
+  return descriptionModeMap.has(chatId);
+}
+
+/**
  * Get memory statistics (for debugging)
  */
 export function getMemoryStats() {
@@ -190,6 +212,7 @@ export function getMemoryStats() {
     rateLimitedUsers: rateLimitMap.size,
     searchModeUsers: searchMode.size,
     deleteModeUsers: deleteMode.size,
-    newCategoryModeUsers: newCategoryMode.size
+    newCategoryModeUsers: newCategoryMode.size,
+    descriptionModeUsers: descriptionModeMap.size
   };
 }
